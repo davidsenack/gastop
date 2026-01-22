@@ -43,8 +43,11 @@ yay -S gastop
 
 **Debian/Ubuntu:**
 ```bash
-curl -LO https://github.com/davidsenack/gastop/releases/latest/download/gastop_amd64.deb
-sudo dpkg -i gastop_amd64.deb
+# Add the repository
+echo "deb [trusted=yes] https://davidsenack.github.io/gastop stable main" | sudo tee /etc/apt/sources.list.d/gastop.list
+
+# Install
+sudo apt update && sudo apt install gastop
 ```
 
 **From source:**

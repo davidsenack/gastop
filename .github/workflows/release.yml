@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -42,12 +44,11 @@ jobs:
           # Linux AMD64
           GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o gastop ./cmd/gastop
           tar -czf gastop-${VERSION}-linux-amd64.tar.gz gastop
-          rm gastop
 
           # Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o gastop ./cmd/gastop
-          tar -czf gastop-${VERSION}-linux-arm64.tar.gz gastop
-          rm gastop
+          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o gastop-arm64 ./cmd/gastop
+          tar -czf gastop-${VERSION}-linux-arm64.tar.gz gastop-arm64
+          rm gastop-arm64
 
           # Windows AMD64
           GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o gastop.exe ./cmd/gastop
@@ -57,33 +58,83 @@ jobs:
           # Generate checksums
           shasum -a 256 *.tar.gz *.zip > checksums.txt
 
+      - name: Build Debian package (amd64)
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          PKG_DIR="gastop_${VERSION}_amd64"
+
+          mkdir -p ${PKG_DIR}/DEBIAN
+          mkdir -p ${PKG_DIR}/usr/bin
+
+          cp gastop ${PKG_DIR}/usr/bin/
+          rm gastop
+
+          cat > ${PKG_DIR}/DEBIAN/control << EOF
+          Package: gastop
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: David Senack <david.senack@gmail.com>
+          Description: Terminal dashboard for Gas Town workspaces
+           An htop-like terminal UI for monitoring Gas Town multi-agent
+           workspaces. Track convoys, beads, and polecats in real time.
+          Homepage: https://github.com/davidsenack/gastop
+          EOF
+
+          dpkg-deb --build ${PKG_DIR}
+          mv ${PKG_DIR}.deb gastop_${VERSION}_amd64.deb
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             *.tar.gz
             *.zip
+            *.deb
             checksums.txt
           generate_release_notes: true
 
-  homebrew:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Update Homebrew formula
+      - name: Setup apt repository
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          SHA256=$(curl -sL "https://github.com/davidsenack/gastop/archive/refs/tags/v${VERSION}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
 
-          sed -i "s/PLACEHOLDER_SHA256/${SHA256}/" packaging/homebrew/gastop.rb
-          sed -i "s/0.1.0/${VERSION}/" packaging/homebrew/gastop.rb
+          mkdir -p apt-repo/pool/main
+          mkdir -p apt-repo/dists/stable/main/binary-amd64
 
-          echo "Updated formula with SHA256: ${SHA256}"
-          cat packaging/homebrew/gastop.rb
+          cp *.deb apt-repo/pool/main/
+
+          cd apt-repo
+          dpkg-scanpackages pool/main > dists/stable/main/binary-amd64/Packages
+          gzip -k dists/stable/main/binary-amd64/Packages
+
+          cat > dists/stable/Release << EOF
+          Origin: gastop
+          Label: gastop
+          Suite: stable
+          Codename: stable
+          Architectures: amd64
+          Components: main
+          Description: gastop - Terminal dashboard for Gas Town
+          EOF
+
+          # Add package info to Release
+          echo "SHA256:" >> dists/stable/Release
+          sha256sum dists/stable/main/binary-amd64/Packages | awk '{print " "$1" "length" main/binary-amd64/Packages"}' >> dists/stable/Release
+          sha256sum dists/stable/main/binary-amd64/Packages.gz | awk '{print " "$1" "length" main/binary-amd64/Packages.gz"}' >> dists/stable/Release
+
+      - name: Upload apt repo artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-repo
+
+  deploy-apt:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
