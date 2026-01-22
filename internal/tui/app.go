@@ -448,7 +448,30 @@ func (a *App) showHelp() {
 
 // showSearch displays the search dialog.
 func (a *App) showSearch() {
-	// TODO: Implement search modal
+	searchModal := NewSearchModal(
+		func(query string) {
+			// Perform search and return to main view
+			a.beads.Search(query)
+			a.app.SetRoot(a.layout, true)
+			a.app.SetFocus(a.beads.Primitive())
+		},
+		func() {
+			// Cancel - return to main view
+			a.app.SetRoot(a.layout, true)
+		},
+	)
+
+	// Center the search form in a flex container
+	flex := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(searchModal, 50, 0, true).
+			AddItem(nil, 0, 1, false), 7, 0, true).
+		AddItem(nil, 0, 1, false)
+
+	a.app.SetRoot(flex, true)
 }
 
 // showFilter displays the filter dialog.
