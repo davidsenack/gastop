@@ -17,28 +17,6 @@ gastop
 gastop --town ~/my-project
 ```
 
-## What You See
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│ gastop │ Town: myproject │ ↻ 1s │ 14:32:15 │ ? help         │
-├─────────────────┬──────────────────┬─────────────────────────┤
-│ CONVOYS         │ BEADS            │ POLECATS                │
-│ ● Sprint 1      │ ● mp-123  Auth   │ ⠹ furiosa (2m)          │
-│   [████░░] 3/5  │ ● mp-124  API    │   mp-xyz: Add login     │
-│                 │ ✓ mp-125  Tests  │ ✓ nux (15m) done        │
-├─────────────────┴──────────────────┴─────────────────────────┤
-│ EVENTS                                                       │
-│ 14:32:01 ● spawn furiosa                                     │
-│ 14:32:15 ✓ mp-125 completed                                  │
-└──────────────────────────────────────────────────────────────┘
-```
-
-- **Convoys** - Batched work with progress bars
-- **Beads** - Issues/tasks with status
-- **Polecats** - Worker agents with activity time
-- **Events** - Real-time activity log
-
 ## Keyboard
 
 | Key | Action |
