@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,23 +12,36 @@ import (
 	"github.com/davidsenack/gastop/internal/model"
 )
 
+const (
+	eventsPollInterval = 100 * time.Millisecond
+	eventsChannelSize  = 100
+)
+
+// eventsFilePath returns the path to the events JSONL file.
+func (a *Adapter) eventsFilePath() string {
+	if a.townRoot != "" {
+		return filepath.Join(a.townRoot, ".events.jsonl")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "gt", ".events.jsonl")
+}
+
+// parseEvent parses a JSON line into an Event struct.
+func parseEvent(data []byte) (model.Event, bool) {
+	var event model.Event
+	if err := json.Unmarshal(data, &event); err != nil {
+		return event, false
+	}
+	event.ParsePayload()
+	return event, true
+}
+
 // TailEvents returns the last N events from the activity log.
 func (a *Adapter) TailEvents(ctx context.Context, n int) ([]model.Event, error) {
-	// Try to read directly from the events file for speed
-	eventsPath := filepath.Join(a.townRoot, ".events.jsonl")
-	if a.townRoot == "" {
-		// Try to find the town root
-		home, _ := os.UserHomeDir()
-		eventsPath = filepath.Join(home, "gt", ".events.jsonl")
-	}
-
-	events, err := a.readEventsFile(eventsPath, n)
+	events, err := a.readEventsFile(a.eventsFilePath(), n)
 	if err == nil && len(events) > 0 {
 		return events, nil
 	}
-
-	// Fallback: try gt log command (but it doesn't have JSON output)
-	// For now, just return the file-based events or empty
 	return events, nil
 }
 
@@ -39,75 +53,67 @@ func (a *Adapter) readEventsFile(path string, n int) ([]model.Event, error) {
 	}
 	defer f.Close()
 
-	// Read all lines (for small files this is fine)
-	// For large files, we'd want to seek from the end
 	var events []model.Event
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		var event model.Event
-		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-			continue // Skip malformed lines
+		if event, ok := parseEvent(scanner.Bytes()); ok {
+			events = append(events, event)
 		}
-		event.ParsePayload()
-		events = append(events, event)
 	}
 
-	// Return last N events
 	if len(events) > n {
 		events = events[len(events)-n:]
 	}
-
 	return events, scanner.Err()
 }
 
 // StreamEvents returns a channel that emits new events as they occur.
 func (a *Adapter) StreamEvents(ctx context.Context) (<-chan model.Event, error) {
-	eventsPath := filepath.Join(a.townRoot, ".events.jsonl")
-	if a.townRoot == "" {
-		home, _ := os.UserHomeDir()
-		eventsPath = filepath.Join(home, "gt", ".events.jsonl")
+	ch := make(chan model.Event, eventsChannelSize)
+	go a.streamEventsLoop(ctx, ch)
+	return ch, nil
+}
+
+// streamEventsLoop handles the event streaming goroutine.
+func (a *Adapter) streamEventsLoop(ctx context.Context, ch chan<- model.Event) {
+	defer close(ch)
+
+	f, err := os.Open(a.eventsFilePath())
+	if err != nil {
+		return
 	}
+	defer f.Close()
 
-	ch := make(chan model.Event, 100)
+	// Seek to end to only receive new events
+	f.Seek(0, io.SeekEnd)
 
-	go func() {
-		defer close(ch)
+	scanner := bufio.NewScanner(f)
+	ticker := time.NewTicker(eventsPollInterval)
+	defer ticker.Stop()
 
-		f, err := os.Open(eventsPath)
-		if err != nil {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.processNewEvents(ctx, scanner, ch)
+		}
+	}
+}
+
+// processNewEvents reads and sends any new events from the scanner.
+func (a *Adapter) processNewEvents(ctx context.Context, scanner *bufio.Scanner, ch chan<- model.Event) {
+	for scanner.Scan() {
+		event, ok := parseEvent(scanner.Bytes())
+		if !ok {
+			continue
+		}
+		select {
+		case ch <- event:
+		case <-ctx.Done():
 			return
 		}
-		defer f.Close()
-
-		// Seek to end
-		f.Seek(0, 2)
-
-		scanner := bufio.NewScanner(f)
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				for scanner.Scan() {
-					var event model.Event
-					if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-						continue
-					}
-					event.ParsePayload()
-					select {
-					case ch <- event:
-					case <-ctx.Done():
-						return
-					}
-				}
-			}
-		}
-	}()
-
-	return ch, nil
+	}
 }
 
 // GetTownStatus returns the overall town status.

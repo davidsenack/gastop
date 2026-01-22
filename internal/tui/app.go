@@ -13,6 +13,9 @@ import (
 	"github.com/rivo/tview"
 )
 
+// keyHandler is a function that handles a key press.
+type keyHandler func()
+
 // App is the main gastop application.
 type App struct {
 	app     *tview.Application
@@ -33,6 +36,10 @@ type App struct {
 	// Panel tracking for vim navigation
 	panels       []tview.Primitive
 	currentPanel int
+
+	// Key bindings
+	runeHandlers map[rune]keyHandler
+	keyHandlers  map[tcell.Key]keyHandler
 
 	// State
 	mu               sync.RWMutex
@@ -58,18 +65,21 @@ func NewApp(cfg *config.Config, adp *adapter.Adapter) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	a := &App{
-		app:         tview.NewApplication(),
-		adapter:     adp,
-		config:      cfg,
-		stuck:       stuck.NewDetector(cfg.StuckThresholdMins),
-		autoRefresh: true,
-		showLogs:    cfg.ShowLogs,
-		ctx:         ctx,
-		cancel:      cancel,
+		app:          tview.NewApplication(),
+		adapter:      adp,
+		config:       cfg,
+		stuck:        stuck.NewDetector(cfg.StuckThresholdMins),
+		autoRefresh:  true,
+		showLogs:     cfg.ShowLogs,
+		ctx:          ctx,
+		cancel:       cancel,
+		runeHandlers: make(map[rune]keyHandler),
+		keyHandlers:  make(map[tcell.Key]keyHandler),
 	}
 
 	a.setupUI()
-	a.setupKeyBindings()
+	a.registerKeyBindings()
+	a.setupInputCapture()
 
 	return a
 }
@@ -124,71 +134,60 @@ func (a *App) setupUI() {
 	a.app.SetRoot(a.layout, true)
 }
 
-// setupKeyBindings configures global key bindings.
-func (a *App) setupKeyBindings() {
+// registerKeyBindings registers all key bindings.
+func (a *App) registerKeyBindings() {
+	// Special keys
+	a.keyHandlers[tcell.KeyTab] = a.focusNext
+	a.keyHandlers[tcell.KeyBacktab] = a.focusPrev
+
+	// Application control
+	a.runeHandlers['q'] = a.Stop
+	a.runeHandlers['r'] = func() { go a.refresh() }
+	a.runeHandlers['t'] = a.toggleAutoRefresh
+	a.runeHandlers['L'] = a.toggleLogs
+
+	// Dialogs
+	a.runeHandlers['?'] = a.showHelp
+	a.runeHandlers['/'] = a.showSearch
+	a.runeHandlers['f'] = a.showFilter
+
+	// Refresh interval
+	a.runeHandlers['+'] = a.decreaseRefreshInterval
+	a.runeHandlers['='] = a.decreaseRefreshInterval
+	a.runeHandlers['-'] = a.increaseRefreshInterval
+
+	// Vim-style panel navigation
+	a.runeHandlers['h'] = a.focusPrev
+	a.runeHandlers['l'] = a.focusNext
+
+	// Vim-style list navigation
+	a.runeHandlers['j'] = a.navigateDown
+	a.runeHandlers['k'] = a.navigateUp
+	a.runeHandlers['g'] = a.navigateTop
+	a.runeHandlers['G'] = a.navigateBottom
+
+	// Kill/close action
+	a.runeHandlers['x'] = a.killSelected
+	a.runeHandlers['d'] = a.killSelected
+}
+
+// setupInputCapture configures the input capture handler.
+func (a *App) setupInputCapture() {
 	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyTab:
-			a.focusNext()
+		// Check special keys first
+		if handler, ok := a.keyHandlers[event.Key()]; ok {
+			handler()
 			return nil
-		case tcell.KeyBacktab:
-			a.focusPrev()
-			return nil
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'q':
-				a.Stop()
-				return nil
-			case 'r':
-				go a.refresh()
-				return nil
-			case 't':
-				a.toggleAutoRefresh()
-				return nil
-			case 'L': // Capital L for logs toggle (lowercase l is vim right)
-				a.toggleLogs()
-				return nil
-			case '?':
-				a.showHelp()
-				return nil
-			case '/':
-				a.showSearch()
-				return nil
-			case 'f':
-				a.showFilter()
-				return nil
-			case '+', '=':
-				a.decreaseRefreshInterval()
-				return nil
-			case '-':
-				a.increaseRefreshInterval()
-				return nil
-			// Vim-style panel navigation
-			case 'h':
-				a.focusPrev()
-				return nil
-			case 'l':
-				a.focusNext()
-				return nil
-			// Vim-style list navigation (j/k handled by list itself, but we ensure it works)
-			case 'j':
-				a.navigateDown()
-				return nil
-			case 'k':
-				a.navigateUp()
-				return nil
-			case 'g':
-				a.navigateTop()
-				return nil
-			case 'G':
-				a.navigateBottom()
-				return nil
-			// Kill/close action
-			case 'x', 'd':
-				a.killSelected()
+		}
+
+		// Then check rune handlers
+		if event.Key() == tcell.KeyRune {
+			if handler, ok := a.runeHandlers[event.Rune()]; ok {
+				handler()
 				return nil
 			}
 		}
+
 		return event
 	})
 }
