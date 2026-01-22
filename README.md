@@ -1,5 +1,7 @@
 # gastop
 
+> **Warning:** This project is 100% vibe-coded and should not be trusted at all. But have fun!
+
 Terminal dashboard for [Gas Town](https://github.com/anthropics/gas-town) workspaces. Like htop, but for your multi-agent projects.
 
 ![Screenshot](assets/screenshots/gastop.png)
