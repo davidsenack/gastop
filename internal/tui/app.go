@@ -13,7 +13,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// App is the main beadtop application.
+// App is the main gastop application.
 type App struct {
 	app     *tview.Application
 	adapter *adapter.Adapter
@@ -21,12 +21,18 @@ type App struct {
 	stuck   *stuck.Detector
 
 	// Layout
-	layout    *tview.Flex
-	statusBar *StatusBar
-	convoys   *ConvoysPanel
-	beads     *BeadsPanel
-	polecats  *PolecatsPanel
-	events    *EventsPanel
+	layout      *tview.Flex
+	mainContent *tview.Flex
+	statusBar   *StatusBar
+	helpBar     *HelpBar
+	convoys     *ConvoysPanel
+	beads       *BeadsPanel
+	polecats    *PolecatsPanel
+	events      *EventsPanel
+
+	// Panel tracking for vim navigation
+	panels       []tview.Primitive
+	currentPanel int
 
 	// State
 	mu           sync.RWMutex
@@ -71,10 +77,22 @@ func NewApp(cfg *config.Config, adp *adapter.Adapter) *App {
 func (a *App) setupUI() {
 	// Create panels
 	a.statusBar = NewStatusBar()
+	a.helpBar = NewHelpBar()
 	a.convoys = NewConvoysPanel()
 	a.beads = NewBeadsPanel()
 	a.polecats = NewPolecatsPanel()
 	a.events = NewEventsPanel(a.config.LogLines)
+
+	// Track panels for vim navigation (h/l)
+	a.panels = []tview.Primitive{
+		a.convoys.Primitive(),
+		a.beads.Primitive(),
+		a.polecats.Primitive(),
+	}
+	if a.showLogs {
+		a.panels = append(a.panels, a.events.Primitive())
+	}
+	a.currentPanel = 0
 
 	// Wire up selection handlers
 	a.convoys.SetSelectedFunc(func(convoy *model.Convoy) {
@@ -85,19 +103,22 @@ func (a *App) setupUI() {
 	})
 
 	// Create main content area (3 columns)
-	mainContent := tview.NewFlex().SetDirection(tview.FlexColumn).
+	a.mainContent = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(a.convoys.Primitive(), 0, 1, true).
 		AddItem(a.beads.Primitive(), 0, 2, false).
 		AddItem(a.polecats.Primitive(), 0, 1, false)
 
-	// Main layout with optional logs panel
+	// Main layout with help bar at bottom
 	a.layout = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(a.statusBar.Primitive(), 1, 0, false).
-		AddItem(mainContent, 0, 1, true)
+		AddItem(a.mainContent, 0, 1, true)
 
 	if a.showLogs {
 		a.layout.AddItem(a.events.Primitive(), a.config.LogLines+2, 0, false)
 	}
+
+	// Add help bar at the very bottom
+	a.layout.AddItem(a.helpBar.Primitive(), 1, 0, false)
 
 	a.app.SetRoot(a.layout, true)
 }
@@ -107,7 +128,10 @@ func (a *App) setupKeyBindings() {
 	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyTab:
-			a.cycleFocus()
+			a.focusNext()
+			return nil
+		case tcell.KeyBacktab:
+			a.focusPrev()
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
@@ -120,7 +144,7 @@ func (a *App) setupKeyBindings() {
 			case 't':
 				a.toggleAutoRefresh()
 				return nil
-			case 'l':
+			case 'L': // Capital L for logs toggle (lowercase l is vim right)
 				a.toggleLogs()
 				return nil
 			case '?':
@@ -138,31 +162,222 @@ func (a *App) setupKeyBindings() {
 			case '-':
 				a.increaseRefreshInterval()
 				return nil
+			// Vim-style panel navigation
+			case 'h':
+				a.focusPrev()
+				return nil
+			case 'l':
+				a.focusNext()
+				return nil
+			// Vim-style list navigation (j/k handled by list itself, but we ensure it works)
+			case 'j':
+				a.navigateDown()
+				return nil
+			case 'k':
+				a.navigateUp()
+				return nil
+			case 'g':
+				a.navigateTop()
+				return nil
+			case 'G':
+				a.navigateBottom()
+				return nil
+			// Kill/close action
+			case 'x', 'd':
+				a.killSelected()
+				return nil
 			}
 		}
 		return event
 	})
 }
 
-// cycleFocus cycles focus between panels.
-func (a *App) cycleFocus() {
+// focusNext moves focus to the next panel (vim l / Tab).
+func (a *App) focusNext() {
+	a.currentPanel = (a.currentPanel + 1) % len(a.panels)
+	a.app.SetFocus(a.panels[a.currentPanel])
+	a.updateHelpBarForFocus()
+}
+
+// focusPrev moves focus to the previous panel (vim h / Shift-Tab).
+func (a *App) focusPrev() {
+	a.currentPanel--
+	if a.currentPanel < 0 {
+		a.currentPanel = len(a.panels) - 1
+	}
+	a.app.SetFocus(a.panels[a.currentPanel])
+	a.updateHelpBarForFocus()
+}
+
+// updateHelpBarForFocus updates help bar based on current focus.
+func (a *App) updateHelpBarForFocus() {
 	focused := a.app.GetFocus()
 	switch focused {
 	case a.convoys.Primitive():
-		a.app.SetFocus(a.beads.Primitive())
+		a.helpBar.UpdateForPanel("convoys")
 	case a.beads.Primitive():
-		a.app.SetFocus(a.polecats.Primitive())
+		a.helpBar.UpdateForPanel("beads")
 	case a.polecats.Primitive():
-		if a.showLogs {
-			a.app.SetFocus(a.events.Primitive())
-		} else {
-			a.app.SetFocus(a.convoys.Primitive())
+		a.helpBar.UpdateForPanel("polecats")
+	case a.events.Primitive():
+		a.helpBar.UpdateForPanel("events")
+	default:
+		a.helpBar.UpdateDefault()
+	}
+}
+
+// navigateDown moves selection down in current list (vim j).
+func (a *App) navigateDown() {
+	focused := a.app.GetFocus()
+	switch focused {
+	case a.convoys.Primitive():
+		a.convoys.list.SetCurrentItem(a.convoys.list.GetCurrentItem() + 1)
+	case a.beads.Primitive():
+		row, _ := a.beads.table.GetSelection()
+		if row < a.beads.table.GetRowCount()-1 {
+			a.beads.table.Select(row+1, 0)
+		}
+	case a.polecats.Primitive():
+		a.polecats.list.SetCurrentItem(a.polecats.list.GetCurrentItem() + 1)
+	case a.events.Primitive():
+		a.events.ScrollDown()
+	}
+}
+
+// navigateUp moves selection up in current list (vim k).
+func (a *App) navigateUp() {
+	focused := a.app.GetFocus()
+	switch focused {
+	case a.convoys.Primitive():
+		idx := a.convoys.list.GetCurrentItem() - 1
+		if idx >= 0 {
+			a.convoys.list.SetCurrentItem(idx)
+		}
+	case a.beads.Primitive():
+		row, _ := a.beads.table.GetSelection()
+		if row > 1 { // Skip header row
+			a.beads.table.Select(row-1, 0)
+		}
+	case a.polecats.Primitive():
+		idx := a.polecats.list.GetCurrentItem() - 1
+		if idx >= 0 {
+			a.polecats.list.SetCurrentItem(idx)
 		}
 	case a.events.Primitive():
-		a.app.SetFocus(a.convoys.Primitive())
-	default:
-		a.app.SetFocus(a.convoys.Primitive())
+		a.events.ScrollUp()
 	}
+}
+
+// navigateTop moves to top of list (vim g).
+func (a *App) navigateTop() {
+	focused := a.app.GetFocus()
+	switch focused {
+	case a.convoys.Primitive():
+		a.convoys.list.SetCurrentItem(0)
+	case a.beads.Primitive():
+		a.beads.table.Select(1, 0) // Skip header
+	case a.polecats.Primitive():
+		a.polecats.list.SetCurrentItem(0)
+	case a.events.Primitive():
+		a.events.ScrollToTop()
+	}
+}
+
+// navigateBottom moves to bottom of list (vim G).
+func (a *App) navigateBottom() {
+	focused := a.app.GetFocus()
+	switch focused {
+	case a.convoys.Primitive():
+		a.convoys.list.SetCurrentItem(a.convoys.list.GetItemCount() - 1)
+	case a.beads.Primitive():
+		a.beads.table.Select(a.beads.table.GetRowCount()-1, 0)
+	case a.polecats.Primitive():
+		a.polecats.list.SetCurrentItem(a.polecats.list.GetItemCount() - 1)
+	case a.events.Primitive():
+		a.events.ScrollToBottom()
+	}
+}
+
+// killSelected kills/closes the selected item based on current panel.
+func (a *App) killSelected() {
+	focused := a.app.GetFocus()
+	switch focused {
+	case a.polecats.Primitive():
+		if pc := a.polecats.Selected(); pc != nil {
+			a.showConfirmKillPolecat(pc)
+		}
+	case a.beads.Primitive():
+		if b := a.beads.Selected(); b != nil {
+			a.showConfirmCloseBead(b)
+		}
+	case a.convoys.Primitive():
+		// Convoys can't be directly killed, show message
+		a.showMessage("Convoys close automatically when all beads complete")
+	}
+}
+
+// showConfirmKillPolecat shows a confirmation dialog for killing a polecat.
+func (a *App) showConfirmKillPolecat(pc *model.Polecat) {
+	name := pc.Name
+	if pc.Rig != "" {
+		name = pc.Rig + "/" + pc.Name
+	}
+
+	modal := tview.NewModal().
+		SetText("Kill polecat " + name + "?\n\nThis will terminate the session and remove the worktree.").
+		AddButtons([]string{"Cancel", "Kill"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Kill" {
+				go func() {
+					err := a.adapter.NukePolecat(a.ctx, pc.Rig, pc.Name)
+					a.app.QueueUpdateDraw(func() {
+						if err != nil {
+							a.showMessage("Failed to kill polecat: " + err.Error())
+						} else {
+							a.showMessage("Polecat " + name + " killed")
+							go a.refresh()
+						}
+					})
+				}()
+			}
+			a.app.SetRoot(a.layout, true)
+		})
+	a.app.SetRoot(modal, true)
+}
+
+// showConfirmCloseBead shows a confirmation dialog for closing a bead.
+func (a *App) showConfirmCloseBead(b *model.Bead) {
+	modal := tview.NewModal().
+		SetText("Close bead " + b.ID + "?\n\n" + b.Title).
+		AddButtons([]string{"Cancel", "Close"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Close" {
+				go func() {
+					err := a.adapter.CloseBead(a.ctx, b.ID)
+					a.app.QueueUpdateDraw(func() {
+						if err != nil {
+							a.showMessage("Failed to close bead: " + err.Error())
+						} else {
+							a.showMessage("Bead " + b.ID + " closed")
+							go a.refresh()
+						}
+					})
+				}()
+			}
+			a.app.SetRoot(a.layout, true)
+		})
+	a.app.SetRoot(modal, true)
+}
+
+// showMessage shows a temporary message modal.
+func (a *App) showMessage(msg string) {
+	modal := tview.NewModal().
+		SetText(msg).
+		AddButtons([]string{"OK"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.app.SetRoot(a.layout, true)
+		})
+	a.app.SetRoot(modal, true)
 }
 
 // toggleAutoRefresh toggles automatic refresh.
@@ -197,17 +412,28 @@ func (a *App) increaseRefreshInterval() {
 func (a *App) toggleLogs() {
 	a.mu.Lock()
 	a.showLogs = !a.showLogs
+	showLogs := a.showLogs
 	a.mu.Unlock()
+
+	// Update panels list
+	a.panels = []tview.Primitive{
+		a.convoys.Primitive(),
+		a.beads.Primitive(),
+		a.polecats.Primitive(),
+	}
+	if showLogs {
+		a.panels = append(a.panels, a.events.Primitive())
+	}
 
 	// Rebuild layout
 	a.app.QueueUpdateDraw(func() {
-		mainContent := a.layout.GetItem(1)
 		a.layout.Clear()
 		a.layout.AddItem(a.statusBar.Primitive(), 1, 0, false)
-		a.layout.AddItem(mainContent, 0, 1, true)
-		if a.showLogs {
+		a.layout.AddItem(a.mainContent, 0, 1, true)
+		if showLogs {
 			a.layout.AddItem(a.events.Primitive(), a.config.LogLines+2, 0, false)
 		}
+		a.layout.AddItem(a.helpBar.Primitive(), 1, 0, false)
 	})
 }
 

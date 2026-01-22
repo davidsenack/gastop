@@ -135,3 +135,37 @@ func parseJSON(data []byte, target interface{}) error {
 	}
 	return json.Unmarshal(data, target)
 }
+
+// NukePolecat kills a polecat completely (session, worktree, branch).
+func (a *Adapter) NukePolecat(ctx context.Context, rig, name string) error {
+	// Use longer timeout for destructive operations
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	target := name
+	if rig != "" {
+		target = rig + "/" + name
+	}
+
+	cmd := exec.CommandContext(ctx, a.gtPath, "polecat", "nuke", target, "--force")
+	if a.townRoot != "" {
+		cmd.Dir = a.townRoot
+	}
+
+	_, err := cmd.Output()
+	return err
+}
+
+// CloseBead closes a bead by ID.
+func (a *Adapter) CloseBead(ctx context.Context, beadID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, a.bdPath, "close", beadID)
+	if a.townRoot != "" {
+		cmd.Dir = a.townRoot
+	}
+
+	_, err := cmd.Output()
+	return err
+}

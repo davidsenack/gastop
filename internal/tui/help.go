@@ -8,23 +8,24 @@ import (
 func NewHelpModal() *tview.Modal {
 	helpText := `gastop - Gas Town Monitor
 
-Navigation:
-  ↑/↓ or j/k    Navigate lists
-  Tab           Switch panels
-  Enter         Drill down / select
-
-Refresh:
-  r             Manual refresh
-  t             Toggle auto-refresh
-  +/=           Faster refresh (min 1s)
-  -             Slower refresh (max 30s)
+Vim Navigation:
+  j/k           Move down/up in lists
+  h/l           Switch panels left/right
+  g/G           Jump to top/bottom
+  Tab/Shift-Tab Next/previous panel
 
 Actions:
-  l             Toggle logs panel
+  x or d        Kill polecat / close bead
+  Enter         Drill down / select
+  r             Manual refresh
+  t             Toggle auto-refresh
+
+Display:
+  L             Toggle logs panel
+  +/=           Faster refresh (min 1s)
+  -             Slower refresh (max 30s)
   /             Search
   f             Filter by status
-  o             Open in $EDITOR
-  s             Sling selected bead
 
 General:
   ?             Show this help

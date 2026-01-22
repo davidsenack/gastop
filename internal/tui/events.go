@@ -99,3 +99,27 @@ func (p *EventsPanel) AppendEvent(e model.Event) {
 func (p *EventsPanel) SetBackgroundColor(color tcell.Color) {
 	p.view.SetBackgroundColor(color)
 }
+
+// ScrollDown scrolls the view down one line.
+func (p *EventsPanel) ScrollDown() {
+	row, col := p.view.GetScrollOffset()
+	p.view.ScrollTo(row+1, col)
+}
+
+// ScrollUp scrolls the view up one line.
+func (p *EventsPanel) ScrollUp() {
+	row, col := p.view.GetScrollOffset()
+	if row > 0 {
+		p.view.ScrollTo(row-1, col)
+	}
+}
+
+// ScrollToTop scrolls to the top of the view.
+func (p *EventsPanel) ScrollToTop() {
+	p.view.ScrollToBeginning()
+}
+
+// ScrollToBottom scrolls to the bottom of the view.
+func (p *EventsPanel) ScrollToBottom() {
+	p.view.ScrollToEnd()
+}
