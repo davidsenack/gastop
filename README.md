@@ -15,22 +15,60 @@ An htop-like terminal UI for [Gas Town](https://github.com/anthropics/gas-town) 
 - **Vim Navigation** - `j/k/h/l` keys for fast navigation
 - **Fast Refresh** - 1-second updates with animated spinners
 
-## Quick Start
+## Installation
 
-### Installation
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap davidsenack/gastop
+brew install gastop
+```
+
+### Arch Linux (AUR)
+
+```bash
+yay -S gastop
+# or
+paru -S gastop
+```
+
+### Debian/Ubuntu
+
+Download the `.deb` package from [releases](https://github.com/davidsenack/gastop/releases):
+
+```bash
+wget https://github.com/davidsenack/gastop/releases/latest/download/gastop_0.1.0_amd64.deb
+sudo dpkg -i gastop_0.1.0_amd64.deb
+```
+
+### Binary Download
+
+Download pre-built binaries from [releases](https://github.com/davidsenack/gastop/releases):
+
+```bash
+# macOS (Apple Silicon)
+curl -LO https://github.com/davidsenack/gastop/releases/latest/download/gastop-0.1.0-darwin-arm64.tar.gz
+tar -xzf gastop-0.1.0-darwin-arm64.tar.gz
+sudo mv gastop /usr/local/bin/
+
+# macOS (Intel)
+curl -LO https://github.com/davidsenack/gastop/releases/latest/download/gastop-0.1.0-darwin-amd64.tar.gz
+
+# Linux (x86_64)
+curl -LO https://github.com/davidsenack/gastop/releases/latest/download/gastop-0.1.0-linux-amd64.tar.gz
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/davidsenack/gastop.git
 cd gastop
 go build -o gastop ./cmd/gastop
-
-# Optional: install to PATH
 sudo mv gastop /usr/local/bin/
 ```
 
 ### Requirements
 
-- Go 1.21+
 - Gas Town CLI tools (`gt` and `bd`) in your PATH
 
 ## Using with Your Project

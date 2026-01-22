@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+
+          # Darwin AMD64
+          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o gastop ./cmd/gastop
+          tar -czf gastop-${VERSION}-darwin-amd64.tar.gz gastop
+          rm gastop
+
+          # Darwin ARM64
+          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o gastop ./cmd/gastop
+          tar -czf gastop-${VERSION}-darwin-arm64.tar.gz gastop
+          rm gastop
+
+          # Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o gastop ./cmd/gastop
+          tar -czf gastop-${VERSION}-linux-amd64.tar.gz gastop
+          rm gastop
+
+          # Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o gastop ./cmd/gastop
+          tar -czf gastop-${VERSION}-linux-arm64.tar.gz gastop
+          rm gastop
+
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o gastop.exe ./cmd/gastop
+          zip gastop-${VERSION}-windows-amd64.zip gastop.exe
+          rm gastop.exe
+
+          # Generate checksums
+          shasum -a 256 *.tar.gz *.zip > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.tar.gz
+            *.zip
+            checksums.txt
+          generate_release_notes: true
+
+  homebrew:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew formula
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          SHA256=$(curl -sL "https://github.com/davidsenack/gastop/archive/refs/tags/v${VERSION}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
+
+          sed -i "s/PLACEHOLDER_SHA256/${SHA256}/" packaging/homebrew/gastop.rb
+          sed -i "s/0.1.0/${VERSION}/" packaging/homebrew/gastop.rb
+
+          echo "Updated formula with SHA256: ${SHA256}"
+          cat packaging/homebrew/gastop.rb

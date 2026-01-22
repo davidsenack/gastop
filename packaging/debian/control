@@ -1,0 +1,22 @@
+Source: gastop
+Section: utils
+Priority: optional
+Maintainer: David Senack <david.senack@gmail.com>
+Build-Depends: debhelper (>= 11), golang-go (>= 1.21)
+Standards-Version: 4.5.0
+Homepage: https://github.com/davidsenack/gastop
+
+Package: gastop
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: htop-like terminal UI for Gas Town workspaces
+ gastop is a terminal-based monitoring tool for Gas Town multi-agent
+ workspaces. It provides real-time visualization of convoys, beads,
+ and polecats with vim-style keyboard navigation.
+ .
+ Features include:
+  - Convoy dashboard with progress bars
+  - Bead browser with search and filtering
+  - Polecat monitor with activity tracking
+  - Event stream with color-coded output
+  - Stuck detection for stalled work
