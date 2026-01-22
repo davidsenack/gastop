@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/davidsenack/gastop/internal/model"
 	"github.com/gdamore/tcell/v2"
@@ -12,6 +13,7 @@ import (
 type BeadsPanel struct {
 	table        *tview.Table
 	beads        []model.Bead
+	allBeads     []model.Bead // Original unfiltered data
 	selectedFunc func(*model.Bead)
 }
 
@@ -47,6 +49,79 @@ func (p *BeadsPanel) Primitive() tview.Primitive {
 
 // Update updates the panel with new bead data.
 func (p *BeadsPanel) Update(beads []model.Bead) {
+	p.allBeads = beads
+	p.updateDisplay(beads)
+}
+
+// SetSelectedFunc sets the callback for when a bead is selected.
+func (p *BeadsPanel) SetSelectedFunc(fn func(*model.Bead)) {
+	p.selectedFunc = fn
+	p.table.SetSelectedFunc(func(row, col int) {
+		if row > 0 && row-1 < len(p.beads) && fn != nil {
+			fn(&p.beads[row-1])
+		}
+	})
+}
+
+// Selected returns the currently selected bead.
+func (p *BeadsPanel) Selected() *model.Bead {
+	row, _ := p.table.GetSelection()
+	if row > 0 && row-1 < len(p.beads) {
+		return &p.beads[row-1]
+	}
+	return nil
+}
+
+// SetTitle sets the panel title.
+func (p *BeadsPanel) SetTitle(title string) {
+	p.table.SetTitle(" " + title + " ")
+}
+
+// FilterByStatus filters the displayed beads by status.
+func (p *BeadsPanel) FilterByStatus(status string) {
+	// Store original beads and filter
+	var filtered []model.Bead
+	for _, b := range p.allBeads {
+		if status == "" || b.Status == status {
+			filtered = append(filtered, b)
+		}
+	}
+	p.updateDisplay(filtered)
+	if status == "" {
+		p.SetTitle("BEADS")
+	} else {
+		p.SetTitle(fmt.Sprintf("BEADS [%s]", status))
+	}
+}
+
+// Search filters beads by ID or Title (case-insensitive).
+func (p *BeadsPanel) Search(query string) {
+	if query == "" {
+		p.updateDisplay(p.allBeads)
+		p.SetTitle("BEADS")
+		return
+	}
+
+	query = strings.ToLower(query)
+	var filtered []model.Bead
+	for _, b := range p.allBeads {
+		if strings.Contains(strings.ToLower(b.ID), query) ||
+			strings.Contains(strings.ToLower(b.Title), query) {
+			filtered = append(filtered, b)
+		}
+	}
+	p.updateDisplay(filtered)
+	p.SetTitle(fmt.Sprintf("BEADS [search: %s]", query))
+}
+
+// ClearSearch resets the beads display to show all beads.
+func (p *BeadsPanel) ClearSearch() {
+	p.updateDisplay(p.allBeads)
+	p.SetTitle("BEADS")
+}
+
+// updateDisplay updates the table without changing allBeads.
+func (p *BeadsPanel) updateDisplay(beads []model.Bead) {
 	p.beads = beads
 
 	// Remember current selection
@@ -105,41 +180,4 @@ func (p *BeadsPanel) Update(beads []model.Bead) {
 	} else if len(beads) > 0 {
 		p.table.Select(1, 0)
 	}
-}
-
-// SetSelectedFunc sets the callback for when a bead is selected.
-func (p *BeadsPanel) SetSelectedFunc(fn func(*model.Bead)) {
-	p.selectedFunc = fn
-	p.table.SetSelectedFunc(func(row, col int) {
-		if row > 0 && row-1 < len(p.beads) && fn != nil {
-			fn(&p.beads[row-1])
-		}
-	})
-}
-
-// Selected returns the currently selected bead.
-func (p *BeadsPanel) Selected() *model.Bead {
-	row, _ := p.table.GetSelection()
-	if row > 0 && row-1 < len(p.beads) {
-		return &p.beads[row-1]
-	}
-	return nil
-}
-
-// SetTitle sets the panel title.
-func (p *BeadsPanel) SetTitle(title string) {
-	p.table.SetTitle(" " + title + " ")
-}
-
-// FilterByStatus filters the displayed beads by status.
-func (p *BeadsPanel) FilterByStatus(status string) {
-	// Store original beads and filter
-	var filtered []model.Bead
-	for _, b := range p.beads {
-		if status == "" || b.Status == status {
-			filtered = append(filtered, b)
-		}
-	}
-	p.Update(filtered)
-	p.SetTitle(fmt.Sprintf("BEADS [%s]", status))
 }

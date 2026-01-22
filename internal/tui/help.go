@@ -40,18 +40,40 @@ Press any key to close`
 	return modal
 }
 
+// SearchModal wraps a form with its input field reference.
+type SearchModal struct {
+	*tview.Form
+	inputField *tview.InputField
+}
+
 // NewSearchModal creates a search input modal.
-func NewSearchModal(onSearch func(query string)) *tview.Form {
-	form := tview.NewForm().
-		AddInputField("Search:", "", 40, nil, nil).
-		AddButton("Search", func() {
-			// Get the search query and call callback
-		}).
-		AddButton("Cancel", nil)
+func NewSearchModal(onSearch func(query string), onCancel func()) *SearchModal {
+	form := tview.NewForm()
+	modal := &SearchModal{Form: form}
 
-	form.SetBorder(true).SetTitle(" Search ")
+	form.AddInputField("Search:", "", 40, nil, nil)
+	modal.inputField = form.GetFormItemByLabel("Search:").(*tview.InputField)
 
-	return form
+	form.AddButton("Search", func() {
+		query := modal.inputField.GetText()
+		if onSearch != nil {
+			onSearch(query)
+		}
+	})
+	form.AddButton("Cancel", func() {
+		if onCancel != nil {
+			onCancel()
+		}
+	})
+
+	form.SetBorder(true).SetTitle(" Search Beads (by ID or Title) ")
+	form.SetCancelFunc(func() {
+		if onCancel != nil {
+			onCancel()
+		}
+	})
+
+	return modal
 }
 
 // NewFilterModal creates a filter selection modal.
