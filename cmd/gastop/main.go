@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -89,6 +91,63 @@ Keyboard:
 }
 
 func runJSONMode(adp *adapter.Adapter, rig string) {
-	// TODO: Implement JSON output mode
-	fmt.Println(`{"status": "not implemented"}`)
+	ctx := context.Background()
+
+	// Build JSON output structure
+	output := struct {
+		Status   *adapter.TownStatus `json:"status,omitempty"`
+		Polecats interface{}         `json:"polecats,omitempty"`
+		Beads    interface{}         `json:"beads,omitempty"`
+		Convoys  interface{}         `json:"convoys,omitempty"`
+		Error    string              `json:"error,omitempty"`
+	}{}
+
+	// Get town status
+	status, err := adp.GetTownStatus(ctx)
+	if err != nil {
+		output.Error = fmt.Sprintf("failed to get town status: %v", err)
+	} else {
+		output.Status = status
+	}
+
+	// Get polecats
+	polecats, err := adp.ListPolecats(ctx, rig)
+	if err != nil {
+		if output.Error != "" {
+			output.Error += "; "
+		}
+		output.Error += fmt.Sprintf("failed to get polecats: %v", err)
+	} else {
+		output.Polecats = polecats
+	}
+
+	// Get beads
+	beads, err := adp.ListBeads(ctx, adapter.BeadListOpts{})
+	if err != nil {
+		if output.Error != "" {
+			output.Error += "; "
+		}
+		output.Error += fmt.Sprintf("failed to get beads: %v", err)
+	} else {
+		output.Beads = beads
+	}
+
+	// Get convoys
+	convoys, err := adp.ListConvoys(ctx, adapter.ConvoyListOpts{})
+	if err != nil {
+		if output.Error != "" {
+			output.Error += "; "
+		}
+		output.Error += fmt.Sprintf("failed to get convoys: %v", err)
+	} else {
+		output.Convoys = convoys
+	}
+
+	// Marshal and print JSON
+	jsonData, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(string(jsonData))
 }
