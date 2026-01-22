@@ -4,40 +4,48 @@ import (
 	"github.com/rivo/tview"
 )
 
-// NewHelpModal creates a help modal with keyboard shortcuts.
-func NewHelpModal() *tview.Modal {
-	helpText := `gastop - Gas Town Monitor
+// NewHelpOverlay creates a styled help overlay with keyboard shortcuts.
+func NewHelpOverlay() *tview.TextView {
+	helpText := `[::b]gastop - Gas Town Monitor[::-]
+[darkgray]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[-]
 
-Vim Navigation:
-  j/k           Move down/up in lists
-  h/l           Switch panels left/right
-  g/G           Jump to top/bottom
-  Tab/Shift-Tab Next/previous panel
+[yellow::b]Navigation[::-]
+  [aqua]j[white]/[aqua]k[-]             Move down/up in lists
+  [aqua]h[white]/[aqua]l[-]             Switch panels left/right
+  [aqua]g[white]/[aqua]G[-]             Jump to top/bottom of list
+  [aqua]Tab[-]           Focus next panel
+  [aqua]Shift-Tab[-]     Focus previous panel
 
-Actions:
-  x or d        Kill polecat / close bead
-  Enter         Drill down / select
-  r             Manual refresh
-  t             Toggle auto-refresh
+[yellow::b]Actions[::-]
+  [aqua]Enter[-]         Drill down / select item
+  [aqua]x[white] or [aqua]d[-]         Kill polecat / close bead
+  [aqua]r[-]             Manual refresh data
+  [aqua]t[-]             Toggle auto-refresh on/off
 
-Display:
-  L             Toggle logs panel
-  +/=           Faster refresh (min 1s)
-  -             Slower refresh (max 30s)
-  /             Search
-  f             Filter by status
+[yellow::b]Display[::-]
+  [aqua]L[-]             Toggle events/logs panel
+  [aqua]+[white]/[aqua]=[-]           Faster refresh (min 1s)
+  [aqua]-[-]             Slower refresh (max 30s)
+  [aqua]/[-]             Search beads by ID or title
+  [aqua]f[-]             Filter beads by status
 
-General:
-  ?             Show this help
-  q             Quit
+[yellow::b]General[::-]
+  [aqua]?[-]             Show this help
+  [aqua]q[-]             Quit gastop
 
-Press any key to close`
+[darkgray]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[-]
+[white::d]Press [aqua]Esc[white] or [aqua]Enter[white] to close[::-]`
 
-	modal := tview.NewModal().
-		SetText(helpText).
-		AddButtons([]string{"Close"})
+	view := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft).
+		SetText(helpText)
 
-	return modal
+	view.SetBorder(true).
+		SetTitle(" Keyboard Shortcuts ").
+		SetTitleAlign(tview.AlignCenter)
+
+	return view
 }
 
 // SearchModal wraps a form with its input field reference.
