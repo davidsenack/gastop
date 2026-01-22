@@ -85,7 +85,9 @@ func (a *Adapter) streamEventsLoop(ctx context.Context, ch chan<- model.Event) {
 	defer f.Close()
 
 	// Seek to end to only receive new events
-	f.Seek(0, io.SeekEnd)
+	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+		return
+	}
 
 	scanner := bufio.NewScanner(f)
 	ticker := time.NewTicker(eventsPollInterval)
