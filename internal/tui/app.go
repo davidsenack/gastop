@@ -438,13 +438,31 @@ func (a *App) toggleLogs() {
 	})
 }
 
-// showHelp displays the help modal.
+// showHelp displays the help overlay.
 func (a *App) showHelp() {
-	help := NewHelpModal()
-	help.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-		a.app.SetRoot(a.layout, true)
+	help := NewHelpOverlay()
+
+	// Handle key events to close the overlay
+	help.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape, tcell.KeyEnter:
+			a.app.SetRoot(a.layout, true)
+			return nil
+		}
+		return event
 	})
-	a.app.SetRoot(help, true)
+
+	// Center the help overlay in a flex container
+	flex := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(help, 50, 0, true).
+			AddItem(nil, 0, 1, false), 24, 0, true).
+		AddItem(nil, 0, 1, false)
+
+	a.app.SetRoot(flex, true)
 }
 
 // showSearch displays the search dialog.
