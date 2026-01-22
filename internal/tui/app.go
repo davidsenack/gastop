@@ -685,18 +685,23 @@ func (a *App) Run() error {
 
 // refreshLoop periodically refreshes data.
 func (a *App) refreshLoop() {
+	timer := time.NewTimer(a.config.RefreshInterval)
+	defer timer.Stop()
+
 	for {
 		select {
 		case <-a.ctx.Done():
 			return
-		case <-time.After(a.config.RefreshInterval):
+		case <-timer.C:
 			a.mu.RLock()
 			autoRefresh := a.autoRefresh
+			interval := a.config.RefreshInterval
 			a.mu.RUnlock()
 
 			if autoRefresh {
 				a.refresh()
 			}
+			timer.Reset(interval)
 		}
 	}
 }
