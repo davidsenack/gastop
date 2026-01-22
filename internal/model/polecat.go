@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Polecat represents a worker agent in Gas Town.
 type Polecat struct {
@@ -13,6 +16,13 @@ type Polecat struct {
 	Attached     bool      `json:"attached"`
 	CreatedAt    time.Time `json:"created_at"`
 	LastActivity time.Time `json:"last_activity"`
+	Branch       string    `json:"branch,omitempty"`
+	ClonePath    string    `json:"clone_path,omitempty"`
+	Windows      int       `json:"windows,omitempty"`
+
+	// Hooked work info (populated separately)
+	HookedBead  string `json:"-"`
+	HookedTitle string `json:"-"`
 
 	// Computed fields
 	Stuck       bool   `json:"-"`
@@ -57,6 +67,54 @@ func (p *Polecat) SessionStatus() string {
 // TimeSinceActivity returns duration since last activity.
 func (p *Polecat) TimeSinceActivity() time.Duration {
 	return time.Since(p.LastActivity)
+}
+
+// ActivityAgo returns a human-readable string of time since last activity.
+func (p *Polecat) ActivityAgo() string {
+	if p.LastActivity.IsZero() {
+		return ""
+	}
+	d := time.Since(p.LastActivity)
+	if d < time.Minute {
+		return "now"
+	}
+	if d < time.Hour {
+		mins := int(d.Minutes())
+		return fmt.Sprintf("%dm", mins)
+	}
+	if d < 24*time.Hour {
+		hours := int(d.Hours())
+		return fmt.Sprintf("%dh", hours)
+	}
+	days := int(d.Hours() / 24)
+	return fmt.Sprintf("%dd", days)
+}
+
+// WorkDescription returns a short description of current work.
+func (p *Polecat) WorkDescription() string {
+	if p.HookedBead != "" {
+		if p.HookedTitle != "" {
+			// Truncate title if too long
+			title := p.HookedTitle
+			if len(title) > 30 {
+				title = title[:27] + "..."
+			}
+			return p.HookedBead + ": " + title
+		}
+		return p.HookedBead
+	}
+	if p.AssignedBead != "" {
+		return p.AssignedBead
+	}
+	if p.Branch != "" {
+		// Extract meaningful part of branch name
+		branch := p.Branch
+		if len(branch) > 25 {
+			branch = "..." + branch[len(branch)-22:]
+		}
+		return branch
+	}
+	return ""
 }
 
 // Agent represents a broader category of agents (witness, refinery, crew).

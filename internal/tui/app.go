@@ -605,12 +605,23 @@ func (a *App) refresh() {
 			a.mu.Unlock()
 			return // Use cached data
 		}
+
+		// Enrich working polecats with hooked bead info and details
+		for i := range polecats {
+			if polecats[i].State == "working" {
+				// Fetch detailed status for working polecats
+				_ = a.adapter.EnrichPolecatWithDetails(a.ctx, &polecats[i])
+			}
+		}
+		// Fetch hooked bead info (only for working/done polecats)
+		a.adapter.EnrichPolecatsWithHooks(a.ctx, polecats)
+
 		a.stuck.CheckPolecats(polecats)
 		a.mu.Lock()
 		a.polecatData = polecats
 		a.mu.Unlock()
 		a.app.QueueUpdateDraw(func() {
-			a.polecats.Update(polecats)
+			a.polecats.UpdateWithSpinner(polecats)
 		})
 	}()
 
