@@ -600,6 +600,9 @@ func (a *App) refresh() {
 	go func() {
 		polecats, err := a.adapter.ListPolecats(a.ctx, "")
 		if err != nil {
+			a.mu.Lock()
+			a.lastError = "polecats: " + err.Error()
+			a.mu.Unlock()
 			return // Use cached data
 		}
 		a.stuck.CheckPolecats(polecats)
@@ -638,6 +641,9 @@ func (a *App) refresh() {
 	go func() {
 		convoys, err := a.adapter.ListConvoys(a.ctx, adapter.ConvoyListOpts{})
 		if err != nil {
+			a.mu.Lock()
+			a.lastError = "convoys: " + err.Error()
+			a.mu.Unlock()
 			return // Use cached data
 		}
 		a.stuck.CheckConvoys(convoys, nil)

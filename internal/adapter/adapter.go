@@ -38,7 +38,7 @@ func New(gtPath, bdPath, townRoot string) *Adapter {
 		gtPath:   gtPath,
 		bdPath:   bdPath,
 		townRoot: townRoot,
-		timeout:  2 * time.Second,
+		timeout:  5 * time.Second,
 		cache:    make(map[string]*cacheEntry),
 	}
 }
