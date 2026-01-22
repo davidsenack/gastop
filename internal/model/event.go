@@ -5,6 +5,39 @@ import (
 	"time"
 )
 
+// eventIcons maps event types to their display icons.
+var eventIcons = map[string]string{
+	"session_start":  "▶",
+	"spawn":          "+",
+	"sling":          "🎯",
+	"handoff":        "🤝",
+	"done":           "✓",
+	"crash":          "💥",
+	"kill":           "✗",
+	"nudge":          "⚡",
+	"polecat_nudged": "⚡",
+	"patrol_started": "🦉",
+	"merge_started":  "⚙",
+	"merged":         "✓",
+	"merge_failed":   "✗",
+	"create":         "+",
+	"bonded":         "+",
+	"update":         "~",
+	"delete":         "⊘",
+	"in_progress":    "→",
+	"completed":      "✓",
+	"failed":         "✗",
+}
+
+// eventSummaries maps event types to their summary templates.
+var eventSummaries = map[string]string{
+	"session_start": "session started",
+	"handoff":       "handed off",
+	"done":          "completed",
+	"crash":         "crashed",
+	"kill":          "killed",
+}
+
 // Event represents an activity event from Gas Town.
 type Event struct {
 	Timestamp  time.Time       `json:"ts"`
@@ -50,53 +83,16 @@ func (e *Event) ParsePayload() {
 
 // Icon returns an icon for the event type.
 func (e *Event) Icon() string {
-	switch e.Type {
-	case "session_start":
-		return "▶"
-	case "spawn":
-		return "+"
-	case "sling":
-		return "🎯"
-	case "handoff":
-		return "🤝"
-	case "done":
-		return "✓"
-	case "crash":
-		return "💥"
-	case "kill":
-		return "✗"
-	case "nudge", "polecat_nudged":
-		return "⚡"
-	case "patrol_started":
-		return "🦉"
-	case "merge_started":
-		return "⚙"
-	case "merged":
-		return "✓"
-	case "merge_failed":
-		return "✗"
-	case "create", "bonded":
-		return "+"
-	case "update":
-		return "~"
-	case "delete":
-		return "⊘"
-	case "in_progress":
-		return "→"
-	case "completed":
-		return "✓"
-	case "failed":
-		return "✗"
-	default:
-		return "•"
+	if icon, ok := eventIcons[e.Type]; ok {
+		return icon
 	}
+	return "•"
 }
 
 // Summary returns a short description of the event.
 func (e *Event) Summary() string {
+	// Handle special cases with dynamic content
 	switch e.Type {
-	case "session_start":
-		return "session started"
 	case "spawn":
 		if e.TargetPolecat != "" {
 			return "spawned " + e.TargetPolecat
@@ -107,17 +103,13 @@ func (e *Event) Summary() string {
 			return e.TargetBead + " → " + e.Message
 		}
 		return "slung work"
-	case "handoff":
-		return "handed off"
-	case "done":
-		return "completed"
-	case "crash":
-		return "crashed"
-	case "kill":
-		return "killed"
-	default:
-		return e.Type
 	}
+
+	// Use static mapping for simple cases
+	if summary, ok := eventSummaries[e.Type]; ok {
+		return summary
+	}
+	return e.Type
 }
 
 // TimeString returns a short time string.
