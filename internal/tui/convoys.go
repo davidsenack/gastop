@@ -40,7 +40,7 @@ func (p *ConvoysPanel) Update(convoys []model.Convoy) {
 	p.list.Clear()
 	for i, c := range convoys {
 		// Build primary text with status icon
-		icon := c.StatusIcon()
+		var icon string
 		if c.Stuck {
 			icon = "[red]⚠[-]"
 		} else if c.Status == "closed" {
