@@ -35,17 +35,18 @@ type App struct {
 	currentPanel int
 
 	// State
-	mu           sync.RWMutex
-	convoyData   []model.Convoy
-	beadData     []model.Bead
-	polecatData  []model.Polecat
-	eventData    []model.Event
-	townStatus   *adapter.TownStatus
-	currentRig   string
-	autoRefresh  bool
-	showLogs     bool
-	lastError    string
-	lastRefresh  time.Time
+	mu               sync.RWMutex
+	convoyData       []model.Convoy
+	beadData         []model.Bead
+	polecatData      []model.Polecat
+	eventData        []model.Event
+	townStatus       *adapter.TownStatus
+	currentRig       string
+	autoRefresh      bool
+	showLogs         bool
+	lastError        string
+	lastRefresh      time.Time
+	beadStatusFilter string // Filter beads by status ("" = all)
 
 	// Context for background operations
 	ctx    context.Context
@@ -476,7 +477,84 @@ func (a *App) showSearch() {
 
 // showFilter displays the filter dialog.
 func (a *App) showFilter() {
-	// TODO: Implement filter modal
+	// Create filter list
+	list := tview.NewList().
+		AddItem("All", "Show all beads", 'a', func() {
+			a.applyBeadFilter("")
+		}).
+		AddItem("Open", "Show open beads", 'o', func() {
+			a.applyBeadFilter("open")
+		}).
+		AddItem("In Progress", "Show in_progress beads", 'i', func() {
+			a.applyBeadFilter("in_progress")
+		}).
+		AddItem("Blocked", "Show blocked beads", 'b', func() {
+			a.applyBeadFilter("blocked")
+		}).
+		AddItem("Deferred", "Show deferred beads", 'd', func() {
+			a.applyBeadFilter("deferred")
+		}).
+		AddItem("Closed", "Show closed beads", 'c', func() {
+			a.applyBeadFilter("closed")
+		})
+
+	list.SetBorder(true).SetTitle(" Filter by Status ")
+
+	// Handle escape key to close
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			a.app.SetRoot(a.layout, true)
+			return nil
+		}
+		return event
+	})
+
+	// Center the list in a flex container for modal-like appearance
+	modal := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(nil, 0, 1, false).
+			AddItem(list, 40, 0, true).
+			AddItem(nil, 0, 1, false), 12, 0, true).
+		AddItem(nil, 0, 1, false)
+
+	a.app.SetRoot(modal, true)
+}
+
+// applyBeadFilter applies a status filter to beads and returns to main layout.
+func (a *App) applyBeadFilter(status string) {
+	a.mu.Lock()
+	a.beadStatusFilter = status
+	beads := a.beadData
+	a.mu.Unlock()
+
+	// Filter beads
+	filtered := a.filterBeadsByStatus(beads, status)
+
+	// Update panel
+	a.app.QueueUpdateDraw(func() {
+		a.beads.Update(filtered)
+		if status == "" {
+			a.beads.SetTitle("BEADS")
+		} else {
+			a.beads.SetTitle("BEADS [" + status + "]")
+		}
+		a.app.SetRoot(a.layout, true)
+	})
+}
+
+// filterBeadsByStatus filters a bead slice by status.
+func (a *App) filterBeadsByStatus(beads []model.Bead, status string) []model.Bead {
+	if status == "" {
+		return beads
+	}
+	var filtered []model.Bead
+	for _, b := range beads {
+		if b.Status == status {
+			filtered = append(filtered, b)
+		}
+	}
+	return filtered
 }
 
 // filterBeadsByConvoy filters beads to show only those tracked by the convoy.
@@ -525,9 +603,17 @@ func (a *App) refresh() {
 		a.stuck.CheckBeads(beads)
 		a.mu.Lock()
 		a.beadData = beads
+		filter := a.beadStatusFilter
 		a.mu.Unlock()
+
+		// Apply current filter
+		filtered := a.filterBeadsByStatus(beads, filter)
+
 		a.app.QueueUpdateDraw(func() {
-			a.beads.Update(beads)
+			a.beads.Update(filtered)
+			if filter != "" {
+				a.beads.SetTitle("BEADS [" + filter + "]")
+			}
 		})
 	}()
 
