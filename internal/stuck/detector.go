@@ -128,10 +128,21 @@ func (d *Detector) checkConvoy(c *model.Convoy, getBeads func(ids []string) []mo
 		}
 	}
 
+	// Determine the reference time - use UpdatedAt if set, otherwise CreatedAt
+	refTime := c.UpdatedAt
+	if refTime.IsZero() {
+		refTime = c.CreatedAt
+	}
+
+	// Skip stuck check if we still don't have a valid timestamp
+	if refTime.IsZero() {
+		return
+	}
+
 	// No progress for a long time
-	if time.Since(c.UpdatedAt) > d.StuckThreshold*2 {
+	if time.Since(refTime) > d.StuckThreshold*2 {
 		c.Stuck = true
-		c.StuckReason = "No progress for " + humanizeDuration(time.Since(c.UpdatedAt))
+		c.StuckReason = "No progress for " + humanizeDuration(time.Since(refTime))
 	}
 }
 

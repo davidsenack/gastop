@@ -73,7 +73,70 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// Auto-detect town root if not set
+	if cfg.Paths.TownRoot == "" {
+		cfg.Paths.TownRoot = detectTownRoot()
+	}
+
 	return cfg, nil
+}
+
+// detectTownRoot tries to find a Gas Town workspace by looking for markers.
+func detectTownRoot() string {
+	// Check GT_TOWN_ROOT environment variable first
+	if root := os.Getenv("GT_TOWN_ROOT"); root != "" {
+		return root
+	}
+
+	// Common locations to check
+	home := os.Getenv("HOME")
+	candidates := []string{
+		filepath.Join(home, "gt", "gastop"),
+		filepath.Join(home, "gt"),
+		filepath.Join(home, "gastop"),
+	}
+
+	// Check current directory and parents
+	cwd, err := os.Getwd()
+	if err == nil {
+		dir := cwd
+		for i := 0; i < 5; i++ { // Check up to 5 levels up
+			if isTownRoot(dir) {
+				return dir
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+
+	// Check common locations
+	for _, c := range candidates {
+		if isTownRoot(c) {
+			return c
+		}
+	}
+
+	return ""
+}
+
+// isTownRoot checks if a directory looks like a Gas Town workspace.
+func isTownRoot(dir string) bool {
+	// Look for .beads directory or config.json with rig markers
+	beadsDir := filepath.Join(dir, ".beads")
+	if info, err := os.Stat(beadsDir); err == nil && info.IsDir() {
+		return true
+	}
+
+	// Check for mayor directory (towns have this)
+	mayorDir := filepath.Join(dir, "mayor")
+	if info, err := os.Stat(mayorDir); err == nil && info.IsDir() {
+		return true
+	}
+
+	return false
 }
 
 // Save writes configuration to the default location.
