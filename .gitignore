@@ -1,0 +1,17 @@
+# Binaries
+gastop
+beadtop
+*.exe
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Test
+coverage.out
+*.test
+
+# OS
+.DS_Store

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "gt-001",
+    "title": "Implement convoy panel",
+    "description": "Create the convoys list panel with selection support",
+    "status": "closed",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "david@example.com",
+    "assignee": "Toast",
+    "created_at": "2026-01-22T10:00:00Z",
+    "updated_at": "2026-01-22T11:30:00Z",
+    "closed_at": "2026-01-22T11:30:00Z",
+    "labels": ["tui", "mvp"]
+  },
+  {
+    "id": "gt-002",
+    "title": "Implement beads panel",
+    "description": "Create the beads table with filtering",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "david@example.com",
+    "assignee": "Furiosa",
+    "created_at": "2026-01-22T10:05:00Z",
+    "updated_at": "2026-01-22T10:30:00Z",
+    "labels": ["tui", "mvp"]
+  },
+  {
+    "id": "gt-003",
+    "title": "Add stuck detection",
+    "description": "Detect and highlight stuck work",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "david@example.com",
+    "created_at": "2026-01-22T10:10:00Z",
+    "updated_at": "2026-01-22T10:10:00Z",
+    "labels": ["detector"],
+    "blocked_by": ["gt-002"]
+  }
+]

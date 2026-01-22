@@ -1,0 +1,4 @@
+{"ts":"2026-01-22T10:00:00Z","source":"gt","type":"spawn","actor":"mayor","payload":{"polecat":"Toast","rig":"gastown"},"visibility":"feed"}
+{"ts":"2026-01-22T10:01:00Z","source":"gt","type":"sling","actor":"mayor","payload":{"bead":"gt-001","target":"gastown/polecats/Toast"},"visibility":"feed"}
+{"ts":"2026-01-22T11:30:00Z","source":"bd","type":"completed","actor":"Toast","payload":{"bead":"gt-001"},"visibility":"feed"}
+{"ts":"2026-01-22T11:35:00Z","source":"gt","type":"sling","actor":"mayor","payload":{"bead":"gt-002","target":"gastown/polecats/Toast"},"visibility":"feed"}

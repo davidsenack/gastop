@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Toast",
+    "rig": "gastown",
+    "state": "working",
+    "assigned_bead": "gt-002",
+    "session_id": "gastown-Toast",
+    "running": true,
+    "attached": false,
+    "created_at": "2026-01-22T10:00:00Z",
+    "last_activity": "2026-01-22T12:29:00Z"
+  },
+  {
+    "name": "Furiosa",
+    "rig": "gastown",
+    "state": "idle",
+    "assigned_bead": "",
+    "session_id": "gastown-Furiosa",
+    "running": true,
+    "attached": false,
+    "created_at": "2026-01-22T09:00:00Z",
+    "last_activity": "2026-01-22T11:00:00Z"
+  }
+]
