@@ -87,3 +87,59 @@ func (a *Adapter) ListStalePolecats(ctx context.Context, rig string) ([]model.Po
 	_ = parseJSON(out, &polecats) // Ignore parse errors
 	return polecats, nil
 }
+
+// HookStatus represents the response from gt hook show.
+type HookStatus struct {
+	Agent  string `json:"agent"`
+	Status string `json:"status"` // "empty" or "hooked"
+	Bead   string `json:"bead,omitempty"`
+	Title  string `json:"title,omitempty"`
+}
+
+// GetHookedBead returns the bead hooked to a polecat (if any).
+func (a *Adapter) GetHookedBead(ctx context.Context, rigPolecat string) (*HookStatus, error) {
+	out, err := a.execGT(ctx, "hook", "show", rigPolecat, "--json")
+	if err != nil {
+		return nil, err
+	}
+
+	var status HookStatus
+	if err := parseJSON(out, &status); err != nil {
+		return nil, err
+	}
+
+	return &status, nil
+}
+
+// EnrichPolecatsWithHooks fetches hooked bead info for polecats that are working.
+// This is a separate call to avoid slowing down the main list.
+func (a *Adapter) EnrichPolecatsWithHooks(ctx context.Context, polecats []model.Polecat) {
+	for i := range polecats {
+		pc := &polecats[i]
+		// Only fetch hooks for working polecats to minimize API calls
+		if pc.State == "working" || pc.State == "done" {
+			status, err := a.GetHookedBead(ctx, pc.FullName())
+			if err == nil && status.Status == "hooked" {
+				pc.HookedBead = status.Bead
+				pc.HookedTitle = status.Title
+			}
+		}
+	}
+}
+
+// EnrichPolecatWithDetails fetches detailed status for a single polecat.
+func (a *Adapter) EnrichPolecatWithDetails(ctx context.Context, pc *model.Polecat) error {
+	detailed, err := a.GetPolecatStatus(ctx, pc.FullName())
+	if err != nil {
+		return err
+	}
+
+	// Copy over detailed fields
+	pc.Branch = detailed.Branch
+	pc.ClonePath = detailed.ClonePath
+	pc.Windows = detailed.Windows
+	pc.LastActivity = detailed.LastActivity
+	pc.SessionID = detailed.SessionID
+
+	return nil
+}
