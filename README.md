@@ -31,9 +31,20 @@ gastop --town ~/my-project
 
 ## Install
 
-**Homebrew:**
+**Homebrew (macOS/Linux):**
 ```bash
 brew install davidsenack/tap/gastop
+```
+
+**Arch Linux (AUR):**
+```bash
+yay -S gastop
+```
+
+**Debian/Ubuntu:**
+```bash
+curl -LO https://github.com/davidsenack/gastop/releases/latest/download/gastop_amd64.deb
+sudo dpkg -i gastop_amd64.deb
 ```
 
 **From source:**
