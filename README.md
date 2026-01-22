@@ -95,7 +95,8 @@ gastop
 ### Option 2: Specify town root explicitly
 
 ```bash
-gastop -town ~/my-project
+gastop -t ~/my-project        # short flag
+gastop --town ~/my-project    # long flag
 ```
 
 ### Option 3: Create an alias
@@ -103,7 +104,7 @@ gastop -town ~/my-project
 Add to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-alias gastop='gastop -town ~/my-project'
+alias gastop='gastop --town ~/my-project'
 ```
 
 ### Option 4: Use a wrapper script
@@ -113,7 +114,7 @@ Create a script in your project:
 ```bash
 #!/bin/bash
 # my-project/gastop-run.sh
-exec gastop -town "$(dirname "$0")"
+exec gastop --town "$(dirname "$0")"
 ```
 
 ## Keyboard Controls
@@ -204,7 +205,7 @@ show_closed = false
 
 ### "No active polecats" / Empty panels
 
-1. Make sure you're in a Gas Town workspace or specify `-town`
+1. Make sure you're in a Gas Town workspace or specify `--town`
 2. Check that `gt` and `bd` commands work: `gt status`, `bd list`
 3. Verify your workspace has a `.beads/` directory
 
@@ -212,7 +213,7 @@ show_closed = false
 
 ```bash
 # Check if auto-detection works
-gastop -town /path/to/your/project
+gastop --town /path/to/your/project
 
 # Or set environment variable
 export GT_TOWN_ROOT=/path/to/your/project

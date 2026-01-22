@@ -1,6 +1,6 @@
-# Binaries
-gastop
-beadtop
+# Binaries (at root level only)
+/gastop
+/beadtop
 *.exe
 dist/
 

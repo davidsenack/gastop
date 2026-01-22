@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/gdamore/tcell/v2 v2.13.7
 	github.com/rivo/tview v0.42.0
+	github.com/spf13/pflag v1.0.10
 )
 
 require (
