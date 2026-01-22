@@ -17,9 +17,13 @@ type StatusBar struct {
 
 // NewStatusBar creates a new status bar.
 func NewStatusBar() *StatusBar {
+	theme := GetTheme()
 	view := tview.NewTextView().
 		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
+		SetTextAlign(tview.AlignLeft).
+		SetTextColor(theme.Foreground)
+
+	view.SetBackgroundColor(theme.BorderColor)
 
 	return &StatusBar{view: view, lastRefresh: time.Now()}
 }
@@ -31,6 +35,7 @@ func (s *StatusBar) Primitive() tview.Primitive {
 
 // Update updates the status bar display.
 func (s *StatusBar) Update(townName, rigName, interval string, connected, stale bool, lastError string) {
+	tags := GetTags()
 	s.refreshTick++
 	s.lastRefresh = time.Now()
 
@@ -42,27 +47,27 @@ func (s *StatusBar) Update(townName, rigName, interval string, connected, stale 
 
 	if connected {
 		if stale {
-			status = "[yellow]⚠ Stale[-]"
+			status = "[" + tags.Warning + "]⚠ Stale[-]"
 		} else {
-			status = fmt.Sprintf("[green]%s[-]", spinner)
+			status = "[" + tags.Success + "]" + spinner + "[-]"
 		}
 	} else {
-		status = "[red]✗[-]"
+		status = "[" + tags.Error + "]✗[-]"
 	}
 
 	// Build the status line
-	line := fmt.Sprintf("[::b]gastop[-] | Town: [::b]%s[-]", townName)
+	line := fmt.Sprintf("[" + tags.Accent1 + "][::b]gastop[-][-] │ Town: [::b]%s[-]", townName)
 	if rigName != "" {
-		line += fmt.Sprintf(" | Rig: [::b]%s[-]", rigName)
+		line += fmt.Sprintf(" │ Rig: [::b]%s[-]", rigName)
 	}
-	line += fmt.Sprintf(" | ↻ %s %s", interval, status)
+	line += fmt.Sprintf(" │ ↻ %s %s", interval, status)
 
 	if lastError != "" {
-		line += fmt.Sprintf(" | [red]%s[-]", truncate(lastError, 30))
+		line += fmt.Sprintf(" │ [" + tags.Error + "]%s[-]", truncate(lastError, 30))
 	}
 
 	// Add timestamp and help hint
-	line += fmt.Sprintf(" | [::d]%s | ? help[-]", time.Now().Format("15:04:05"))
+	line += fmt.Sprintf(" │ [" + tags.Dim + "]%s[-] │ [" + tags.Muted + "]? help[-]", time.Now().Format("15:04:05"))
 
 	s.view.SetText(line)
 }

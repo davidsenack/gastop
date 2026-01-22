@@ -17,12 +17,17 @@ type EventsPanel struct {
 
 // NewEventsPanel creates a new events panel.
 func NewEventsPanel(maxLines int) *EventsPanel {
+	theme := GetTheme()
 	view := tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(true).
-		SetWrap(false)
+		SetWrap(false).
+		SetTextColor(theme.Foreground)
 
-	view.SetBorder(true).SetTitle(" EVENTS ")
+	view.SetBorder(true).
+		SetTitle(" EVENTS ").
+		SetBorderColor(theme.BorderColor).
+		SetTitleColor(theme.TitleColor)
 
 	return &EventsPanel{
 		view:     view,
@@ -37,18 +42,20 @@ func (p *EventsPanel) Primitive() tview.Primitive {
 
 // Update updates the panel with new event data.
 func (p *EventsPanel) Update(events []model.Event) {
+	tags := GetTags()
 	p.events = events
 
 	var text string
 	for _, e := range events {
 		// Format: timestamp icon summary
-		line := fmt.Sprintf("[gray]%s[-] %s %s",
+		line := fmt.Sprintf("[%s]%s[-] %s %s",
+			tags.Dim,
 			e.TimeString(),
 			p.colorIcon(e.Icon(), e.Type),
 			e.Summary(),
 		)
 		if e.Actor != "" {
-			line += fmt.Sprintf(" [::d](%s)[-]", e.Actor)
+			line += fmt.Sprintf(" [%s](%s)[-]", tags.Muted, e.Actor)
 		}
 		text += line + "\n"
 	}
@@ -59,24 +66,25 @@ func (p *EventsPanel) Update(events []model.Event) {
 
 // colorIcon returns the icon with appropriate color.
 func (p *EventsPanel) colorIcon(icon, eventType string) string {
+	tags := GetTags()
 	var color string
 	switch eventType {
 	case "spawn", "create", "bonded":
-		color = "green"
+		color = tags.Success
 	case "done", "completed", "merged":
-		color = "green"
+		color = tags.Success
 	case "crash", "failed", "merge_failed", "kill":
-		color = "red"
+		color = tags.Error
 	case "sling":
-		color = "cyan"
+		color = tags.Accent1
 	case "handoff":
-		color = "yellow"
+		color = tags.Warning
 	case "nudge", "polecat_nudged":
-		color = "yellow"
+		color = tags.Accent3
 	case "in_progress":
-		color = "blue"
+		color = tags.Working
 	default:
-		color = "white"
+		color = tags.Muted
 	}
 	return fmt.Sprintf("[%s]%s[-]", color, icon)
 }

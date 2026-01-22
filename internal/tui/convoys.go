@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/davidsenack/gastop/internal/model"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -17,12 +16,19 @@ type ConvoysPanel struct {
 
 // NewConvoysPanel creates a new convoys panel.
 func NewConvoysPanel() *ConvoysPanel {
+	theme := GetTheme()
 	list := tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(tcell.ColorDarkBlue)
+		SetSelectedBackgroundColor(theme.SelectionBg).
+		SetSelectedTextColor(theme.SelectionFg).
+		SetMainTextColor(theme.Foreground).
+		SetSecondaryTextColor(theme.Muted)
 
-	list.SetBorder(true).SetTitle(" CONVOYS ")
+	list.SetBorder(true).
+		SetTitle(" CONVOYS ").
+		SetBorderColor(theme.BorderColor).
+		SetTitleColor(theme.TitleColor)
 
 	return &ConvoysPanel{list: list}
 }
@@ -34,6 +40,7 @@ func (p *ConvoysPanel) Primitive() tview.Primitive {
 
 // Update updates the panel with new convoy data.
 func (p *ConvoysPanel) Update(convoys []model.Convoy) {
+	tags := GetTags()
 	p.convoys = convoys
 	currentIndex := p.list.GetCurrentItem()
 
@@ -42,11 +49,11 @@ func (p *ConvoysPanel) Update(convoys []model.Convoy) {
 		// Build primary text with status icon
 		var icon string
 		if c.Stuck {
-			icon = "[red]⚠[-]"
+			icon = "[" + tags.Error + "]⚠[-]"
 		} else if c.Status == "closed" {
-			icon = "[green]✓[-]"
+			icon = "[" + tags.Done + "]✓[-]"
 		} else {
-			icon = "[blue]●[-]"
+			icon = "[" + tags.Accent1 + "]●[-]"
 		}
 
 		primary := fmt.Sprintf("%s %s", icon, c.Title)
@@ -55,9 +62,15 @@ func (p *ConvoysPanel) Update(convoys []model.Convoy) {
 		}
 
 		// Build secondary text with progress
-		secondary := fmt.Sprintf("  %s [%d/%d]", c.ID, c.ClosedCount, c.TotalCount)
+		secondary := fmt.Sprintf("  [%s]%s[-] ", tags.Dim, c.ID)
+		if c.TotalCount > 0 {
+			// Show progress bar
+			pct := float64(c.ClosedCount) / float64(c.TotalCount)
+			secondary += renderProgressBar(pct, 8) + " "
+		}
+		secondary += fmt.Sprintf("[%s]%d/%d[-]", tags.Muted, c.ClosedCount, c.TotalCount)
 		if c.Stuck {
-			secondary += " [red]STUCK[-]"
+			secondary += " [" + tags.Error + "]STUCK[-]"
 		}
 
 		idx := i
@@ -72,6 +85,26 @@ func (p *ConvoysPanel) Update(convoys []model.Convoy) {
 	if currentIndex >= 0 && currentIndex < len(convoys) {
 		p.list.SetCurrentItem(currentIndex)
 	}
+}
+
+// renderProgressBar renders a simple progress bar.
+func renderProgressBar(pct float64, width int) string {
+	tags := GetTags()
+	filled := int(pct * float64(width))
+	if filled > width {
+		filled = width
+	}
+
+	bar := "["
+	for i := 0; i < width; i++ {
+		if i < filled {
+			bar += "[" + tags.Success + "]█[-]"
+		} else {
+			bar += "[" + tags.Dim + "]░[-]"
+		}
+	}
+	bar += "]"
+	return bar
 }
 
 // SetSelectedFunc sets the callback for when a convoy is selected.

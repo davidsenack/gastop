@@ -19,18 +19,22 @@ type BeadsPanel struct {
 
 // NewBeadsPanel creates a new beads panel.
 func NewBeadsPanel() *BeadsPanel {
+	theme := GetTheme()
 	table := tview.NewTable().
 		SetBorders(false).
 		SetSelectable(true, false).
-		SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorDarkBlue))
+		SetSelectedStyle(tcell.StyleDefault.Background(theme.SelectionBg).Foreground(theme.SelectionFg))
 
-	table.SetBorder(true).SetTitle(" BEADS ")
+	table.SetBorder(true).
+		SetTitle(" BEADS ").
+		SetBorderColor(theme.BorderColor).
+		SetTitleColor(theme.TitleColor)
 
 	// Set up header row
 	headers := []string{"", "ID", "Status", "Pri", "Title", "Age"}
 	for i, h := range headers {
 		cell := tview.NewTableCell(h).
-			SetTextColor(tcell.ColorYellow).
+			SetTextColor(theme.Accent1).
 			SetSelectable(false).
 			SetExpansion(0)
 		if i == 4 { // Title column expands
@@ -122,6 +126,7 @@ func (p *BeadsPanel) ClearSearch() {
 
 // updateDisplay updates the table without changing allBeads.
 func (p *BeadsPanel) updateDisplay(beads []model.Bead) {
+	theme := GetTheme()
 	p.beads = beads
 
 	// Remember current selection
@@ -138,40 +143,53 @@ func (p *BeadsPanel) updateDisplay(beads []model.Bead) {
 
 		// Status icon
 		icon := b.StatusIcon()
-		iconColor := tcell.ColorWhite
+		iconColor := theme.Foreground
 		if b.Stuck {
 			icon = "⚠"
-			iconColor = tcell.ColorRed
+			iconColor = theme.Stuck
 		} else {
 			switch b.Status {
 			case "in_progress":
-				iconColor = tcell.ColorBlue
+				iconColor = theme.InProgress
 			case "closed":
-				iconColor = tcell.ColorGreen
+				iconColor = theme.Done
 			case "blocked":
-				iconColor = tcell.ColorRed
+				iconColor = theme.Blocked
 			case "deferred":
-				iconColor = tcell.ColorYellow
+				iconColor = theme.Warning
+			case "open":
+				iconColor = theme.Info
 			}
 		}
 
 		p.table.SetCell(row, 0, tview.NewTableCell(icon).SetTextColor(iconColor))
-		p.table.SetCell(row, 1, tview.NewTableCell(b.ID).SetTextColor(tcell.ColorDarkCyan))
-		p.table.SetCell(row, 2, tview.NewTableCell(b.Status))
-		p.table.SetCell(row, 3, tview.NewTableCell(b.PriorityString()))
+		p.table.SetCell(row, 1, tview.NewTableCell(b.ID).SetTextColor(theme.Accent1))
+		p.table.SetCell(row, 2, tview.NewTableCell(b.Status).SetTextColor(theme.Muted))
+
+		// Priority with color coding
+		priCell := tview.NewTableCell(b.PriorityString())
+		switch b.Priority {
+		case 0:
+			priCell.SetTextColor(theme.Error) // P0 = critical
+		case 1:
+			priCell.SetTextColor(theme.Warning) // P1 = high
+		default:
+			priCell.SetTextColor(theme.Muted)
+		}
+		p.table.SetCell(row, 3, priCell)
 
 		// Truncate title if needed
 		title := b.Title
 		if len(title) > 40 {
 			title = title[:37] + "..."
 		}
-		titleCell := tview.NewTableCell(title).SetExpansion(1)
+		titleCell := tview.NewTableCell(title).SetExpansion(1).SetTextColor(theme.Foreground)
 		if b.Stuck {
-			titleCell.SetTextColor(tcell.ColorRed)
+			titleCell.SetTextColor(theme.Stuck)
 		}
 		p.table.SetCell(row, 4, titleCell)
 
-		p.table.SetCell(row, 5, tview.NewTableCell(b.Age))
+		p.table.SetCell(row, 5, tview.NewTableCell(b.Age).SetTextColor(theme.Muted))
 	}
 
 	// Restore selection

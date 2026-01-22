@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/davidsenack/gastop/internal/model"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -21,12 +20,19 @@ type PolecatsPanel struct {
 
 // NewPolecatsPanel creates a new polecats panel.
 func NewPolecatsPanel() *PolecatsPanel {
+	theme := GetTheme()
 	list := tview.NewList().
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(tcell.ColorDarkBlue)
+		SetSelectedBackgroundColor(theme.SelectionBg).
+		SetSelectedTextColor(theme.SelectionFg).
+		SetMainTextColor(theme.Foreground).
+		SetSecondaryTextColor(theme.Muted)
 
-	list.SetBorder(true).SetTitle(" POLECATS ")
+	list.SetBorder(true).
+		SetTitle(" POLECATS ").
+		SetBorderColor(theme.BorderColor).
+		SetTitleColor(theme.TitleColor)
 
 	return &PolecatsPanel{list: list, spinnerIdx: 0}
 }
@@ -43,6 +49,7 @@ func (p *PolecatsPanel) Primitive() tview.Primitive {
 
 // Update updates the panel with new polecat data.
 func (p *PolecatsPanel) Update(polecats []model.Polecat) {
+	tags := GetTags()
 	p.polecats = polecats
 	currentIndex := p.list.GetCurrentItem()
 
@@ -53,17 +60,17 @@ func (p *PolecatsPanel) Update(polecats []model.Polecat) {
 		iconColor := ""
 		if pc.Stuck {
 			icon = "⚠"
-			iconColor = "[red]"
+			iconColor = "[" + tags.Error + "]"
 		} else {
 			switch pc.State {
 			case "working":
 				// Use spinner for working state
 				icon = spinnerFrames[p.spinnerIdx]
-				iconColor = "[yellow]"
+				iconColor = "[" + tags.Working + "]"
 			case "done":
-				iconColor = "[green]"
+				iconColor = "[" + tags.Done + "]"
 			case "idle":
-				iconColor = "[gray]"
+				iconColor = "[" + tags.Idle + "]"
 			}
 		}
 
@@ -77,14 +84,14 @@ func (p *PolecatsPanel) Update(polecats []model.Polecat) {
 
 		// Add session status indicator
 		if !pc.Running {
-			primary += " [red]●[-]" // Red dot = stopped
+			primary += " [" + tags.Error + "]●[-]" // Red dot = stopped
 		} else if pc.Attached {
-			primary += " [blue]◉[-]" // Blue ring = attached
+			primary += " [" + tags.Info + "]◉[-]" // Blue ring = attached
 		}
 
 		// Add activity time if available
 		if activityAgo := pc.ActivityAgo(); activityAgo != "" {
-			primary += " [gray](" + activityAgo + ")[-]"
+			primary += " [" + tags.Dim + "](" + activityAgo + ")[-]"
 		}
 
 		// Build secondary text with work info
@@ -92,14 +99,14 @@ func (p *PolecatsPanel) Update(polecats []model.Polecat) {
 
 		// Show work description (hooked bead, assigned bead, or branch)
 		if work := pc.WorkDescription(); work != "" {
-			secondary += "[white]" + work + "[-]"
+			secondary += "[" + tags.Accent1 + "]" + work + "[-]"
 		} else {
-			secondary += "[gray]" + pc.State + "[-]"
+			secondary += "[" + tags.Muted + "]" + pc.State + "[-]"
 		}
 
 		// Add stuck reason if stuck
 		if pc.Stuck {
-			secondary += " [red]" + pc.StuckReason + "[-]"
+			secondary += " [" + tags.Error + "]" + pc.StuckReason + "[-]"
 		}
 
 		idx := i
@@ -112,7 +119,7 @@ func (p *PolecatsPanel) Update(polecats []model.Polecat) {
 
 	// Show placeholder if no polecats
 	if len(polecats) == 0 {
-		p.list.AddItem("[gray]No active polecats[-]", "", 0, nil)
+		p.list.AddItem("["+tags.Muted+"]No active polecats[-]", "", 0, nil)
 	}
 
 	// Restore selection
