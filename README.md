@@ -72,6 +72,10 @@ go install github.com/davidsenack/gastop/cmd/gastop@latest
 
 - [Gas Town](https://github.com/anthropics/gas-town) CLI tools (`gt` and `bd`)
 
+## Contributing
+
+Contributions welcome! Feel free to open issues or submit PRs. This is a fun project - don't overthink it.
+
 ## License
 
 MIT
